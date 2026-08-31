@@ -5,6 +5,12 @@ export type RootStackParamList = {
   Main: undefined;
   TaskDetail: { id: string };
   History: { id: string; taskNumber?: string };
+  OrderDetail: { id: string };
+  CreateOrder: undefined;
+  AddProduct: { orderId: string; orderNumber?: string };
+  Notifications: undefined;
+  Employees: undefined;
+  CreateEmployee: undefined;
 };
 
 export type Nav = NativeStackNavigationProp<RootStackParamList>;

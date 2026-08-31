@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { Image, Modal, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { colors, radius, stageColor } from '../theme/tokens';
 import { Badge, Loading, PrimaryButton, T } from '../components/ui';
 import { completeStage, getTask, timerStart, timerStop } from '../api/tasks';
+import { assignTask, getUsers } from '../api/meta';
+import { useAuth } from '../store/auth';
 import { durationText, hms, thDate, thDateTime } from '../lib/format';
 import { Nav, RootStackParamList } from '../navigation/types';
 
@@ -29,9 +31,17 @@ export default function TaskDetailScreen() {
   const qc = useQueryClient();
   const { data: task, isLoading } = useQuery({ queryKey: ['task', id], queryFn: () => getTask(id) });
 
+  const { user } = useAuth();
+  const canAssign = user?.role === 'ADMIN' || user?.role === 'SUPERVISOR';
   const [now, setNow] = useState(Date.now());
   const [confirmVisible, setConfirmVisible] = useState(false);
+  const [assignVisible, setAssignVisible] = useState(false);
   const [note, setNote] = useState('');
+  const { data: users } = useQuery({
+    queryKey: ['users'],
+    queryFn: getUsers,
+    enabled: canAssign && assignVisible,
+  });
 
   const running = task?.running ?? null;
   useEffect(() => {
@@ -49,6 +59,13 @@ export default function TaskDetailScreen() {
   const startM = useMutation({ mutationFn: () => timerStart(id), onSuccess: invalidate });
   const stopM = useMutation({ mutationFn: (n?: string) => timerStop(id, n), onSuccess: invalidate });
   const completeM = useMutation({ mutationFn: (n?: string) => completeStage(id, n), onSuccess: invalidate });
+  const assignM = useMutation({
+    mutationFn: (uid: string) => assignTask(id, uid),
+    onSuccess: () => {
+      invalidate();
+      setAssignVisible(false);
+    },
+  });
 
   if (isLoading || !task) return <Loading />;
 
@@ -143,8 +160,19 @@ export default function TaskDetailScreen() {
                     : '—'
               }
             />
-            <InfoRow label="กำหนดส่ง" value={thDate(task.dueDate)} last />
+            <InfoRow label="กำหนดส่ง" value={thDate(task.dueDate)} />
+            <InfoRow label="ผู้รับผิดชอบ" value={task.assignee?.name ?? 'ยังไม่มอบหมาย'} last />
           </View>
+
+          {canAssign ? (
+            <PrimaryButton
+              label="มอบหมายงาน"
+              onPress={() => setAssignVisible(true)}
+              bg={colors.card}
+              fg={colors.forest700}
+              style={{ marginTop: 12, height: 46, borderWidth: 1, borderColor: colors.border }}
+            />
+          ) : null}
 
           <T w="semibold" size={16} c={colors.textStrong} style={{ marginTop: 24, marginBottom: 14 }}>
             ขั้นตอนการผลิต
@@ -244,6 +272,39 @@ export default function TaskDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal transparent visible={assignVisible} animationType="fade" onRequestClose={() => setAssignVisible(false)}>
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modal}>
+            <T w="bold" size={20} c={colors.textStrong}>มอบหมายงาน</T>
+            <T size={13} c={colors.textMuted} style={{ marginTop: 4, marginBottom: 10 }}>
+              เลือกพนักงานที่รับผิดชอบ
+            </T>
+            <ScrollView style={{ maxHeight: 320 }}>
+              {(users ?? [])
+                .filter((u: any) => u.role === 'WORKER')
+                .map((u: any) => (
+                  <Pressable key={u.id} onPress={() => assignM.mutate(u.id)} style={styles.assignRow}>
+                    <View>
+                      <T w="medium" size={15} c={colors.textStrong}>{u.name}</T>
+                      <T size={12} c={colors.textMuted}>{u.station?.label ?? '—'}</T>
+                    </View>
+                    {task.assignee?.id === u.id ? (
+                      <T c={colors.forest700} size={16}>✓</T>
+                    ) : null}
+                  </Pressable>
+                ))}
+            </ScrollView>
+            <PrimaryButton
+              label="ปิด"
+              onPress={() => setAssignVisible(false)}
+              bg={colors.line200}
+              fg={colors.textBody}
+              style={{ marginTop: 12 }}
+            />
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -292,6 +353,14 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modal: { width: '100%', backgroundColor: colors.card, borderRadius: radius.xl, padding: 24 },
+  assignRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.line100,
+  },
   noteInput: {
     marginTop: 16,
     minHeight: 70,
