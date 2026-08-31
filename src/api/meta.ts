@@ -7,3 +7,9 @@ export const getUsers = (): Promise<any[]> => api.get('/users').then((r) => r.da
 export const createUser = (body: any) => api.post('/users', body).then((r) => r.data);
 export const assignTask = (taskId: string, assigneeId: string) =>
   api.patch(`/tasks/${taskId}/assign`, { assigneeId }).then((r) => r.data);
+
+// persisted per-user inbox
+export const getInbox = (): Promise<{ unread: number; items: any[] }> =>
+  api.get('/inbox').then((r) => r.data);
+export const markInboxRead = (id: string) => api.patch(`/inbox/${id}/read`).then((r) => r.data);
+export const markInboxReadAll = () => api.post('/inbox/read-all').then((r) => r.data);

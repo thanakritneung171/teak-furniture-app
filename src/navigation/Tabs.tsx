@@ -9,7 +9,7 @@ import BoardScreen from '../screens/BoardScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import OverviewScreen from '../screens/OverviewScreen';
 import OrdersScreen from '../screens/OrdersScreen';
-import NotificationsScreen from '../screens/NotificationsScreen';
+import InboxScreen from '../screens/InboxScreen';
 
 const Tab = createBottomTabNavigator();
 const icon =
@@ -41,7 +41,7 @@ export default function Tabs() {
         <>
           <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'หน้าหลัก', tabBarIcon: icon('🏠') }} />
           <Tab.Screen name="Tasks" component={TasksScreen} options={{ title: 'งาน', tabBarIcon: icon('📋') }} />
-          <Tab.Screen name="Alerts" component={NotificationsScreen} options={{ title: 'แจ้งเตือน', tabBarIcon: icon('🔔') }} />
+          <Tab.Screen name="Alerts" component={InboxScreen} options={{ title: 'แจ้งเตือน', tabBarIcon: icon('🔔') }} />
           <Tab.Screen name="Profile" component={ProfileScreen} options={{ title: 'โปรไฟล์', tabBarIcon: icon('👤') }} />
         </>
       ) : (

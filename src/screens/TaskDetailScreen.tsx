@@ -7,6 +7,7 @@ import { colors, radius, stageColor } from '../theme/tokens';
 import { Badge, Loading, PrimaryButton, T } from '../components/ui';
 import { completeStage, getTask, timerStart, timerStop } from '../api/tasks';
 import { assignTask, getUsers } from '../api/meta';
+import { imageUri } from '../api/client';
 import { useAuth } from '../store/auth';
 import { durationText, hms, thDate, thDateTime } from '../lib/format';
 import { Nav, RootStackParamList } from '../navigation/types';
@@ -82,7 +83,7 @@ export default function TaskDetailScreen() {
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.page }} edges={['bottom']}>
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         {task.images?.[0] ? (
-          <Image source={{ uri: task.images[0].url }} style={styles.hero} />
+          <Image source={{ uri: imageUri(task.images[0].url) }} style={styles.hero} />
         ) : (
           <View style={[styles.hero, styles.heroPlaceholder]} />
         )}
