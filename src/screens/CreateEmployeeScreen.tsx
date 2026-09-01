@@ -22,7 +22,7 @@ export default function CreateEmployeeScreen() {
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [password, setPassword] = useState('');
+  const [pin, setPin] = useState('');
   const [role, setRole] = useState('WORKER');
   const [stationId, setStationId] = useState('');
 
@@ -35,7 +35,7 @@ export default function CreateEmployeeScreen() {
       createUser({
         name,
         phone,
-        password,
+        pin,
         role,
         stationId: role === 'WORKER' ? stationId || undefined : undefined,
       }),
@@ -45,15 +45,15 @@ export default function CreateEmployeeScreen() {
     },
   });
 
-  const valid = name.trim() && phone.trim() && password.length >= 4 && (role !== 'WORKER' || stationId);
+  const valid = name.trim() && phone.trim() && /^\d{6}$/.test(pin) && (role !== 'WORKER' || stationId);
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.page }} edges={['bottom']}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={{ padding: 20 }} keyboardShouldPersistTaps="handled">
           <Field label="ชื่อ *" value={name} onChangeText={setName} placeholder="สมชาย" />
-          <Field label="เบอร์โทร (ใช้ login) *" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="0810000009" />
-          <Field label="รหัสผ่าน *" value={password} onChangeText={setPassword} placeholder="อย่างน้อย 4 ตัว" />
+          <Field label="เบอร์โทร *" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="0810000009" />
+          <Field label="PIN 6 หลัก (ใช้ login) *" value={pin} onChangeText={setPin} keyboardType="number-pad" maxLength={6} placeholder="เช่น 100009" />
           <Choice label="สิทธิ์" options={ROLES} value={role} onChange={setRole} />
           {role === 'WORKER' ? (
             <Choice label="แผนก (stage ที่รับผิดชอบ) *" options={stationOptions} value={stationId} onChange={setStationId} />

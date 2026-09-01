@@ -13,7 +13,7 @@ export type User = {
 type AuthCtx = {
   user: User | null;
   loading: boolean;
-  login: (phone: string, password: string) => Promise<void>;
+  login: (pin: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -36,8 +36,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
-  const login = async (phone: string, password: string) => {
-    const { data } = await api.post('/auth/login', { phone, password });
+  const login = async (pin: string) => {
+    const { data } = await api.post('/auth/login', { pin });
     await AsyncStorage.setItem('token', data.accessToken);
     await AsyncStorage.setItem('user', JSON.stringify(data.user));
     setUser(data.user);

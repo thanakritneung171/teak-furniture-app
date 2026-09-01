@@ -10,6 +10,8 @@ export function Field({
   placeholder,
   keyboardType,
   multiline,
+  maxLength,
+  secureTextEntry,
 }: {
   label: string;
   value: string;
@@ -17,6 +19,8 @@ export function Field({
   placeholder?: string;
   keyboardType?: KeyboardTypeOptions;
   multiline?: boolean;
+  maxLength?: number;
+  secureTextEntry?: boolean;
 }) {
   return (
     <View style={{ marginBottom: 16 }}>
@@ -30,6 +34,8 @@ export function Field({
         placeholderTextColor={colors.mute}
         keyboardType={keyboardType}
         multiline={multiline}
+        maxLength={maxLength}
+        secureTextEntry={secureTextEntry}
         style={[styles.input, multiline ? { minHeight: 80, textAlignVertical: 'top', paddingTop: 12 } : null]}
       />
     </View>

@@ -38,13 +38,15 @@ npx react-native run-android      # or: run-ios
 LAN IP (e.g. `http://192.168.1.20:4000`). Uploaded images resolve via `imageUri()` against the
 same origin.
 
-## Login (from the API seed — all password `password`)
+## Login — 6-digit PIN (from the API seed)
 
-| phone | who | lands on |
+Enter a 6-digit PIN on the keypad (no phone/password).
+
+| PIN | who | lands on |
 |---|---|---|
-| `0810000005` | worker · ทำสี | My Work (own-station tasks, urgent/overdue) |
-| `0810000001` | supervisor | Overview (KPI) + Board + Orders + assign |
-| `0810000000` | admin | Overview + Employees |
+| `100005` | worker · ทำสี | My Work (own-station tasks, urgent/overdue) |
+| `100001` | supervisor | Overview (KPI) + Board + Orders + assign |
+| `100000` | admin | Overview + Employees |
 
 ## Screens
 
