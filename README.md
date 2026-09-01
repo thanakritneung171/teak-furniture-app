@@ -25,6 +25,18 @@ npx react-native-asset      # links the Bai Jamjuree fonts (assets/fonts) into a
 
 ## Run
 
+### Web (react-native-web) — เปิดในเบราว์เซอร์ ไม่ต้องลง APK
+
+```bash
+npm run web          # dev server ที่ http://localhost:8080 (hot reload)
+npm run build:web    # build static → dist-web/ (เอาขึ้น nginx บน VPS ได้)
+```
+
+ใช้โค้ด RN ชุดเดียวกัน render เป็นเว็บ (webpack + react-native-web). โมดูลเฉพาะ native ถูกสลับ
+อัตโนมัติด้วยไฟล์ `.web` (เช่น `src/lib/pickImage.web.ts` ใช้ `<input type=file>` แทน image-picker).
+
+### Native (Android/iOS)
+
 ```bash
 # terminal 1 — Metro
 npx react-native start

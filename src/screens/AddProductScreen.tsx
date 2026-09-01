@@ -3,10 +3,10 @@ import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleShee
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { launchImageLibrary } from 'react-native-image-picker';
 import { colors, radius } from '../theme/tokens';
 import { PrimaryButton, T } from '../components/ui';
 import { Choice, Field } from '../components/Field';
+import { pickImage } from '../lib/pickImage';
 import { addProduct } from '../api/orders';
 import { attachImage, uploadImage } from '../api/uploads';
 import { imageUri } from '../api/client';
@@ -41,12 +41,11 @@ export default function AddProductScreen() {
   const [uploading, setUploading] = useState(false);
 
   const pick = async () => {
-    const res = await launchImageLibrary({ mediaType: 'photo', quality: 0.7 });
-    const a = res.assets?.[0];
-    if (!a?.uri) return;
+    const a = await pickImage();
+    if (!a) return;
     setUploading(true);
     try {
-      const up = await uploadImage({ uri: a.uri, fileName: a.fileName, type: a.type });
+      const up = await uploadImage(a);
       setImages((x) => [...x, up.url]);
     } finally {
       setUploading(false);
