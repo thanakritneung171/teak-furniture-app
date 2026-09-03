@@ -36,8 +36,12 @@ export const getTasks = (params?: Record<string, string>): Promise<TaskCard[]> =
 export const getTask = (id: string): Promise<any> => api.get(`/tasks/${id}`).then((r) => r.data);
 export const getHistory = (id: string): Promise<any[]> =>
   api.get(`/tasks/${id}/history`).then((r) => r.data);
-export const timerStart = (id: string) => api.post(`/tasks/${id}/timer/start`, {}).then((r) => r.data);
-export const timerStop = (id: string, note?: string) =>
-  api.post(`/tasks/${id}/timer/stop`, { note }).then((r) => r.data);
-export const completeStage = (id: string, note?: string) =>
-  api.patch(`/tasks/${id}/complete-stage`, { note }).then((r) => r.data);
+// opts: clientId (idempotency key) + at (เวลาจริงที่กด) — ใช้เวลาซิงค์ action ที่กดตอนออฟไลน์
+export type SendOpts = { clientId?: string; at?: string };
+
+export const timerStart = (id: string, opts?: SendOpts) =>
+  api.post(`/tasks/${id}/timer/start`, { ...opts }).then((r) => r.data);
+export const timerStop = (id: string, note?: string, opts?: SendOpts) =>
+  api.post(`/tasks/${id}/timer/stop`, { note, ...opts }).then((r) => r.data);
+export const completeStage = (id: string, note?: string, opts?: SendOpts) =>
+  api.patch(`/tasks/${id}/complete-stage`, { note, ...opts }).then((r) => r.data);

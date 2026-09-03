@@ -5,9 +5,11 @@ import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { colors, radius, stageColor } from '../theme/tokens';
 import { Badge, Loading, PrimaryButton, T } from '../components/ui';
-import { completeStage, getTask, timerStart, timerStop } from '../api/tasks';
+import { getTask } from '../api/tasks';
 import { assignTask, getUsers } from '../api/meta';
 import { imageUri } from '../api/client';
+import { performTaskAction } from '../offline/sync';
+import { useOnline, useSyncState } from '../offline/useSync';
 import { useAuth } from '../store/auth';
 import { durationText, hms, thDate, thDateTime } from '../lib/format';
 import { Nav, RootStackParamList } from '../navigation/types';
@@ -38,6 +40,9 @@ export default function TaskDetailScreen() {
   const [confirmVisible, setConfirmVisible] = useState(false);
   const [assignVisible, setAssignVisible] = useState(false);
   const [note, setNote] = useState('');
+  const [acting, setActing] = useState<null | 'start' | 'stop' | 'complete'>(null);
+  const online = useOnline();
+  const sync = useSyncState();
   const { data: users } = useQuery({
     queryKey: ['users'],
     queryFn: getUsers,
@@ -57,9 +62,67 @@ export default function TaskDetailScreen() {
     qc.invalidateQueries({ queryKey: ['tasks'] });
     qc.invalidateQueries({ queryKey: ['board'] });
   };
-  const startM = useMutation({ mutationFn: () => timerStart(id), onSuccess: invalidate });
-  const stopM = useMutation({ mutationFn: (n?: string) => timerStop(id, n), onSuccess: invalidate });
-  const completeM = useMutation({ mutationFn: (n?: string) => completeStage(id, n), onSuccess: invalidate });
+
+  // action ของพนักงาน: อัปเดตจอทันที (optimistic) + เข้าคิว (ออฟไลน์ได้) แล้วค่อยซิงค์
+  const runAction = async (
+    kind: 'timer-start' | 'timer-stop' | 'complete-stage',
+    patch: (t: any) => any,
+    n?: string,
+  ) => {
+    setActing(kind === 'timer-start' ? 'start' : kind === 'timer-stop' ? 'stop' : 'complete');
+    qc.setQueryData(['task', id], (t: any) => (t ? patch(t) : t));
+    const { synced } = await performTaskAction(kind, id, n);
+    if (synced) invalidate(); // ออนไลน์: ดึงสถานะจริงจากเซิร์ฟเวอร์ (sessionId ฯลฯ)
+    setActing(null);
+  };
+
+  const doStart = () =>
+    runAction('timer-start', (t) => ({
+      ...t,
+      running: { sessionId: 'local', startTime: new Date().toISOString(), elapsedSec: 0 },
+    }));
+
+  const doStop = (n?: string) =>
+    runAction(
+      'timer-stop',
+      (t) => {
+        const add = t.running
+          ? Math.floor((Date.now() - new Date(t.running.startTime).getTime()) / 1000)
+          : 0;
+        return { ...t, running: null, totalDurationSec: (t.totalDurationSec || 0) + add };
+      },
+      n,
+    );
+
+  const doComplete = (n?: string) =>
+    runAction(
+      'complete-stage',
+      (t) => {
+        const tl = t.timeline || [];
+        const curIdx = tl.findIndex((s: any) => s.status === 'current');
+        const next = tl[curIdx + 1];
+        if (!next) return t;
+        const add = t.running
+          ? Math.floor((Date.now() - new Date(t.running.startTime).getTime()) / 1000)
+          : 0;
+        const newTl = tl.map((s: any, i: number) =>
+          i === curIdx
+            ? { ...s, status: 'done', at: new Date().toISOString(), by: user?.name ?? s.by }
+            : i === curIdx + 1
+              ? { ...s, status: 'current' }
+              : s,
+        );
+        return {
+          ...t,
+          running: null,
+          totalDurationSec: (t.totalDurationSec || 0) + add,
+          stage: { code: next.code, label: next.label, isTerminal: curIdx + 1 === tl.length - 1 },
+          timeline: newTl,
+        };
+      },
+      n,
+    );
+
   const assignM = useMutation({
     mutationFn: (uid: string) => assignTask(id, uid),
     onSuccess: () => {
@@ -74,13 +137,24 @@ export default function TaskDetailScreen() {
   const isTerminal = task.stage.isTerminal;
 
   const onComplete = async () => {
-    await completeM.mutateAsync(note || undefined);
+    await doComplete(note || undefined);
     setConfirmVisible(false);
     setNote('');
   };
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.page }} edges={['bottom']}>
+      {!online || sync.pending > 0 ? (
+        <View style={[styles.syncBar, { backgroundColor: online ? colors.forest700 : colors.danger }]}>
+          <T size={12.5} c={colors.white} w="medium">
+            {!online
+              ? `📴 ออฟไลน์ · บันทึกในเครื่องแล้ว${sync.pending ? ` · รอซิงค์ ${sync.pending}` : ''}`
+              : sync.syncing
+                ? `🔄 กำลังซิงค์ ${sync.pending} รายการ…`
+                : `⏳ รอซิงค์ ${sync.pending} รายการ`}
+          </T>
+        </View>
+      ) : null}
       <ScrollView contentContainerStyle={{ paddingBottom: 40 }}>
         {task.images?.[0] ? (
           <Image source={{ uri: imageUri(task.images[0].url) }} style={styles.hero} />
@@ -119,8 +193,8 @@ export default function TaskDetailScreen() {
               running ? (
                 <PrimaryButton
                   label="หยุด"
-                  onPress={() => stopM.mutate(undefined)}
-                  loading={stopM.isPending}
+                  onPress={() => doStop(undefined)}
+                  loading={acting === 'stop'}
                   bg={colors.danger}
                   fg={colors.white}
                   style={{ marginTop: 16, width: '100%' }}
@@ -128,8 +202,8 @@ export default function TaskDetailScreen() {
               ) : (
                 <PrimaryButton
                   label="เริ่มทำงาน"
-                  onPress={() => startM.mutate()}
-                  loading={startM.isPending}
+                  onPress={doStart}
+                  loading={acting === 'start'}
                   bg={colors.gold500}
                   fg={colors.forest900}
                   style={{ marginTop: 16, width: '100%' }}
@@ -264,7 +338,7 @@ export default function TaskDetailScreen() {
               <PrimaryButton
                 label="ยืนยันเสร็จ"
                 onPress={onComplete}
-                loading={completeM.isPending}
+                loading={acting === 'complete'}
                 bg={colors.forest900}
                 fg={colors.gold300}
                 style={{ flex: 1 }}
@@ -311,6 +385,7 @@ export default function TaskDetailScreen() {
 }
 
 const styles = StyleSheet.create({
+  syncBar: { paddingVertical: 8, paddingHorizontal: 16, alignItems: 'center' },
   hero: { width: '100%', height: 240, backgroundColor: colors.sand200 },
   heroPlaceholder: { alignItems: 'center', justifyContent: 'center' },
   timerCard: {
