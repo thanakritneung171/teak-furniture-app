@@ -2,6 +2,7 @@ const path = require('path');
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
+const WorkboxPlugin = require('workbox-webpack-plugin');
 
 const appDirectory = __dirname;
 
@@ -67,13 +68,43 @@ module.exports = (env, argv) => {
     module: { rules: [esmResolveFix, babelLoaderConfiguration, assetLoaderConfiguration] },
     plugins: [
       new HtmlWebpackPlugin({ template: path.resolve(appDirectory, 'public/index.html') }),
+      // คัดลอก public ทั้งหมด (fonts, icons, manifest) ยกเว้น index.html (HtmlWebpackPlugin จัดการ)
       new CopyWebpackPlugin({
-        patterns: [{ from: 'public/fonts', to: 'fonts' }],
+        patterns: [{ from: 'public', to: '.', globOptions: { ignore: ['**/index.html'] } }],
       }),
       new webpack.DefinePlugin({
         __DEV__: JSON.stringify(!isProd),
         'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
       }),
+      // Service Worker (PWA) — เฉพาะ production build
+      ...(isProd
+        ? [
+            new WorkboxPlugin.GenerateSW({
+              swDest: 'service-worker.js',
+              clientsClaim: true,
+              skipWaiting: true,
+              maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+              navigateFallback: '/index.html',
+              runtimeCaching: [
+                {
+                  // อ่านข้อมูล API ออฟไลน์ได้ (NetworkFirst — ออนไลน์เอาสด, ออฟไลน์เอา cache)
+                  urlPattern: ({ url }) => url.pathname.startsWith('/api/'),
+                  handler: 'NetworkFirst',
+                  options: {
+                    cacheName: 'api-cache',
+                    networkTimeoutSeconds: 5,
+                    expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 3600 },
+                  },
+                },
+                {
+                  urlPattern: ({ url }) => url.pathname.startsWith('/uploads/'),
+                  handler: 'CacheFirst',
+                  options: { cacheName: 'uploads', expiration: { maxEntries: 200 } },
+                },
+              ],
+            }),
+          ]
+        : []),
     ],
     devServer: {
       historyApiFallback: true,
