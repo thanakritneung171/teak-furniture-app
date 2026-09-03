@@ -75,6 +75,8 @@ module.exports = (env, argv) => {
       new webpack.DefinePlugin({
         __DEV__: JSON.stringify(!isProd),
         'process.env.NODE_ENV': JSON.stringify(isProd ? 'production' : 'development'),
+        // API origin สำหรับ PWA — ตั้งตอน build: TEAK_API_ORIGIN=https://api.example.com npm run build:web
+        'process.env.TEAK_API_ORIGIN': JSON.stringify(process.env.TEAK_API_ORIGIN || ''),
       }),
       // Service Worker (PWA) — เฉพาะ production build
       ...(isProd
